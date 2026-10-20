@@ -81,17 +81,18 @@ function save(){
     if(again){again=false;save()}
   },function(){saving=false;setSave('offline');cache()});
 }
+// Never swap in server data while a sheet is open: the form holds the old item and saving it would add a copy.
 function refresh(){
   if(!sb||!listId)return;
   sb.from('lists').select('data').eq('id',listId).maybeSingle().then(function(r){
-    if(r.data&&r.data.data&&!saveTimer&&!saving&&saveState!=='pending'&&saveState!=='offline'&&saveState!=='error'){state=r.data.data;cache();if(!sheetEl)render()}
+    if(r.data&&r.data.data&&!sheetEl&&!saveTimer&&!saving&&saveState!=='pending'&&saveState!=='offline'&&saveState!=='error'){state=r.data.data;cache();render()}
   });
 }
 function listen(){
   if(!sb||!listId)return;
   if(channel)sb.removeChannel(channel);
   channel=sb.channel('list-'+listId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'lists',filter:'id=eq.'+listId},function(p){
-    if(p.new&&p.new.data&&!saveTimer&&!saving&&saveState!=='pending'&&(p.new.data.updatedAt||0)>(state.updatedAt||0)){state=p.new.data;cache();if(!sheetEl)render()}
+    if(p.new&&p.new.data&&!sheetEl&&!saveTimer&&!saving&&saveState!=='pending'&&(p.new.data.updatedAt||0)>(state.updatedAt||0)){state=p.new.data;cache();render()}
   }).subscribe();
 }
 
