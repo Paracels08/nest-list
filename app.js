@@ -143,8 +143,9 @@ function overview(){
   var drops=all.filter(function(i){return !i.got&&hasDrop(i)});
   if(drops.length)s+=H2('Price drops',drops.length)+'<div class="group">'+drops.map(itemRow).join('')+'</div>';
   var must=all.filter(function(i){return i.must!==false&&!i.got});
-  s+=H2('Must-haves left',must.length)+'<div class="group">'+(must.length?must.slice(0,6).map(itemRow).join(''):'<div class="empty">Every must-have is sorted.</div>')+'</div>'+
-    (must.length>6?'<p class="note">Plus '+(must.length-6)+' more in Baby and Mom.</p>':'');
+  var left=must.filter(function(i){return drops.indexOf(i)<0});// already shown under Price drops
+  s+=H2('Must-haves left',must.length)+'<div class="group">'+(left.length?left.slice(0,6).map(itemRow).join(''):'<div class="empty">'+(must.length?'The rest are under Price drops above.':'Every must-have is sorted.')+'</div>')+'</div>'+
+    (left.length>6?'<p class="note">Plus '+(left.length-6)+' more in Baby and Mom.</p>':'');
   s+='<button class="btn wide" data-act="copy-list">Copy shopping list</button>';
   return s;
 }
