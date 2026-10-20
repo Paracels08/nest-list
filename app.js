@@ -447,5 +447,11 @@ if(!sb){render()}else{
     loadList();
   });
 }
-if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  // When a new release takes over, reload once so it shows straight away (unless something is being edited).
+  var hadSW=!!navigator.serviceWorker.controller,reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadSW&&!reloaded&&!sheetEl){reloaded=true;flush();location.reload()}});
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){r.update()}).catch(function(){})});
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(function(r){if(r)r.update()})});
+}
 })();
