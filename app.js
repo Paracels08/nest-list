@@ -290,12 +290,16 @@ function taskForm(f,listId){
     openSheet('Task',b,{done:true});return;
   }
   var dd=state.settings.dueDate,q='';
-  if(dd)q='<div class="qchips">'+[[-56,'8 wks before due'],[-28,'4 wks before'],[-14,'2 wks before'],[0,'Due date'],[14,'2 wks after'],[42,'6 wks after']].map(function(x){return '<button type="button" class="chip" data-add="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>';
+  q='<div class="qchips">'+(dd?[[-56,'8 wks before due'],[-28,'4 wks before'],[-14,'2 wks before'],[0,'Due date'],[14,'2 wks after'],[42,'6 wks after']]:[]).map(function(x){return '<button type="button" class="chip" data-add="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<button type="button" class="chip" data-clear>No date</button></div>';
   var b='<div class="fg"><input class="in" id="t-title" value="'+esc(t.title)+'" placeholder="Task" aria-label="Task" style="padding-left:16px;padding-right:16px"></div>'+
-   '<div class="fg">'+sw('t-done',t.done,'Done')+'<div class="fr"><label for="t-due">Deadline</label><input class="in" id="t-due" type="date" value="'+esc(t.due)+'"></div>'+q+'</div>'+
+   '<div class="fg">'+sw('t-done',t.done,'Done')+'<div class="fr"><label for="t-due">Deadline</label><span class="datepick"><span class="dp-txt" id="t-due-txt"></span><input id="t-due" type="date" value="'+esc(t.due)+'"></span></div>'+q+'</div>'+
    '<div class="fh">Notes</div><div class="fg"><textarea class="in" id="t-notes" placeholder="Documents needed, phone numbers, links" aria-label="Notes">'+esc(t.notes)+'</textarea></div>'+(isNew?'':delBtn('t-del'));
   openSheet(isNew?'New task':'Edit task',b,{onSave:function(r){var v=$('#t-title',r).value.trim();if(!v){$('#t-title',r).focus();return false}t.title=v;t.due=$('#t-due',r).value;t.done=swVal(r,'t-done');t.notes=$('#t-notes',r).value.trim();if(isNew)l.tasks.push(t)}},function(r){
-    r.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){$('#t-due',r).value=addDays(dd,+b.getAttribute('data-add'))}});
+    // The real date input sits invisibly over the label, so tapping it opens the phone's own date picker.
+    var due=$('#t-due',r),txt=$('#t-due-txt',r),sync=function(){txt.textContent=due.value?longDate(due.value):'Choose a date';txt.classList.toggle('empty',!due.value)};
+    due.addEventListener('input',sync);due.addEventListener('change',sync);sync();
+    r.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){due.value=addDays(dd,+b.getAttribute('data-add'));sync()}});
+    $('[data-clear]',r).onclick=function(){due.value='';sync()};
     if(f)armDelete(r,'t-del',function(){l.tasks=l.tasks.filter(function(x){return x!==t})});
     if(isNew)setTimeout(function(){$('#t-title',r).focus()},60);
   });

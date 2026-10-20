@@ -172,6 +172,10 @@ textarea.in{min-height:84px;resize:vertical;padding:13px 18px;display:block}
 .opt .o2{display:flex;gap:10px;padding:0 18px 0 50px;border-top:1px dashed var(--sep)}
 .opt .o2 .in:last-child{max-width:110px;text-align:right;font-variant-numeric:tabular-nums}
 .hist{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums;padding:0 18px 10px 50px}
+.datepick{flex:1;align-self:stretch;position:relative;display:flex;align-items:center;justify-content:flex-end}
+.datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;-webkit-appearance:none;appearance:none;border:0}
+.dp-txt{font-weight:600;color:var(--ink)}
+.dp-txt.empty{color:var(--accent-text)}
 .qchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 18px 14px}
 .qchips .chip{font-size:13px;padding:6px 12px;background:var(--fill);box-shadow:none}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
