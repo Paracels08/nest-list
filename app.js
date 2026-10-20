@@ -190,7 +190,7 @@ function sections(a){
   return state.areas[a].sections.map(function(sec){
     var items=sec.items.filter(matches);
     if(filtering&&!items.length)return '';
-    var col=!filtering&&ui.collapsed[sec.id];
+    var col=!ui.q.trim()&&ui.collapsed[sec.id];// remembered on this phone
     var done=sec.items.filter(function(i){return i.got}).length;
     return '<section class="'+(col?'collapsed':'')+'"><div class="sec-h"><button class="ttl" data-act="collapse" data-id="'+sec.id+'" aria-expanded="'+!col+'"><h3>'+esc(sec.name)+'</h3><span class="cnt">'+done+'/'+sec.items.length+'</span>'+ICON.chev+'</button>'+
      (canWrite?'<button class="iconbtn" data-act="sec-menu" data-id="'+sec.id+'" aria-label="Edit section '+esc(sec.name)+'">'+ICON.dots+'</button>':'')+'</div>'+
@@ -202,9 +202,10 @@ function todos(){
   state.lists.forEach(function(l){
     var tasks=l.tasks.slice().sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;if(a.due&&b.due)return a.due<b.due?-1:1;if(a.due)return -1;if(b.due)return 1;return 0});
     var done=l.tasks.filter(function(t){return t.done}).length;
-    s+='<section><div class="sec-h"><div class="ttl"><h3>'+esc(l.name)+'</h3><span class="cnt">'+done+'/'+l.tasks.length+'</span></div>'+
-     (canWrite?'<button class="iconbtn" data-act="list-menu" data-id="'+l.id+'" aria-label="Edit list '+esc(l.name)+'">'+ICON.dots+'</button>':'')+'</div><div class="group">'+
-     tasks.map(function(t){return taskRow(t)}).join('')+(canWrite?addRow('new-task','data-list="'+l.id+'"','Add task'):(tasks.length?'':'<div class="empty">No tasks yet.</div>'))+'</div></section>';
+    var col=ui.collapsed[l.id];
+    s+='<section class="'+(col?'collapsed':'')+'"><div class="sec-h"><button class="ttl" data-act="collapse" data-id="'+l.id+'" aria-expanded="'+!col+'"><h3>'+esc(l.name)+'</h3><span class="cnt">'+done+'/'+l.tasks.length+'</span>'+ICON.chev+'</button>'+
+     (canWrite?'<button class="iconbtn" data-act="list-menu" data-id="'+l.id+'" aria-label="Edit list '+esc(l.name)+'">'+ICON.dots+'</button>':'')+'</div>'+(col?'':'<div class="group">'+
+     tasks.map(function(t){return taskRow(t)}).join('')+(canWrite?addRow('new-task','data-list="'+l.id+'"','Add task'):(tasks.length?'':'<div class="empty">No tasks yet.</div>'))+'</div>')+'</section>';
   });
   if(canWrite)s+=addRow('new-list','','New list').replace('class="add"','class="add solo"');
   return s;
@@ -409,7 +410,7 @@ app.addEventListener('click',function(e){
   var act=b.getAttribute('data-act'),id=b.getAttribute('data-id');
   if(act==='tab'){ui.tab=b.getAttribute('data-tab');keepUi();try{history.replaceState(null,'','#'+ui.tab)}catch(x){}render();window.scrollTo(0,0);return}
   if(act==='filter'){ui.filter=b.getAttribute('data-f');keepUi();render();return}
-  if(act==='collapse'){if(ui.filter!=='all'||ui.q.trim())return;ui.collapsed[id]=!ui.collapsed[id];keepUi();render();return}
+  if(act==='collapse'){if(ui.q.trim())return;ui.collapsed[id]=!ui.collapsed[id];keepUi();render();return}
   if(act==='retry'){if(saveState==='error'||saveState==='pending')save();return}
   if(act==='open-item'){var f=findItem(id);if(f)(canWrite?itemForm(f):itemView(f));return}
   if(act==='open-task'){var ft=findTask(id);if(ft)taskForm(ft);return}

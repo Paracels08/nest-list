@@ -1,6 +1,6 @@
 // App shell cache so Nest List opens instantly and works offline. Bump VERSION on every release.
-const VERSION = 'nest-v5';
-const SHELL = ['./', 'index.html', 'app.css?v=5', 'app.js?v=5', 'config.js', 'starter.json', 'vendor/supabase.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
+const VERSION = 'nest-v6';
+const SHELL = ['./', 'index.html', 'app.css?v=6', 'app.js?v=6', 'config.js', 'starter.json', 'vendor/supabase.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
