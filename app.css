@@ -1,29 +1,15 @@
-/* Layout: soft inset-grouped column, pillowy cards. Blurred top bar, large rounded title per tab, floating tab bar, bottom sheets. */
+/* Always light: warm cream, dusty rose and soft pastels. Layout: soft inset-grouped column, pillowy cards. Blurred top bar, large rounded title per tab, floating tab bar, bottom sheets. */
 :root{
-  --bg:#FFF6F3;--surface:#FFFFFF;--fill:#F8ECEB;--fill2:#FCF1EF;--ink:#3D2E3A;--ink2:rgba(61,46,58,.66);--ink3:rgba(61,46,58,.4);
-  --sep:rgba(120,70,90,.12);--accent:#D9607F;--accent-ink:#FFFFFF;--accent-text:#B9446A;--accent-soft:#FFE1E8;
-  --pink:#FFE1E8;--pink-2:#E8698A;--peach:#FFE6D6;--peach-2:#EE9064;--lilac:#ECE5FB;--lilac-2:#9580D9;--mint:#DDF3E9;--mint-2:#3FA884;--butter:#FFF1C9;--butter-2:#9A7400;
-  --hero-a:#FFD9CF;--hero-b:#FBD3E6;--hero-ink:#3D2E3A;--hero-2:rgba(61,46,58,.62);--hero-track:rgba(255,255,255,.6);
-  --danger:#C9443E;--danger-soft:#FFE2DF;
-  --bar:rgba(255,246,243,.82);--glow:rgba(255,255,255,.3);--ring-bg:rgba(255,255,255,.8);--scrim:rgba(61,30,45,.28);--shadow:0 6px 22px rgba(190,90,120,.08),0 1px 2px rgba(190,90,120,.06);
+  --bg:#FBF4EE;--surface:#FFFCF9;--fill:#F3E9E2;--fill2:#F7EFE9;--ink:#4A3B3F;--ink2:rgba(74,59,63,.66);--ink3:rgba(74,59,63,.4);
+  --sep:rgba(120,85,75,.12);--accent:#C97B84;--accent-ink:#FFFFFF;--accent-text:#A9566A;--accent-soft:#F8E1E1;
+  --pink:#F9E3E3;--pink-2:#D98A94;--peach:#FBE7D9;--peach-2:#D9936A;--lilac:#EEE7F4;--lilac-2:#9C88C4;--mint:#E3F0E6;--mint-2:#5E9E7C;--butter:#FAF0D4;--butter-2:#9A7A22;
+  --hero-a:#F9DCCF;--hero-b:#F4D9E0;--hero-ink:#4A3B3F;--hero-2:rgba(74,59,63,.62);--hero-track:rgba(255,255,255,.6);
+  --danger:#C25B4E;--danger-soft:#F9E0DA;
+  --bar:rgba(251,244,238,.85);--glow:rgba(255,255,255,.3);--ring-bg:rgba(255,255,255,.8);--scrim:rgba(74,59,63,.25);--shadow:0 6px 22px rgba(150,100,80,.08),0 1px 2px rgba(150,100,80,.06);color-scheme:light;
   --f:"Nunito",ui-rounded,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --fd:"Fredoka","Nunito",ui-rounded,-apple-system,system-ui,sans-serif;
   --r:24px;--tabh:58px;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#1C1619;--surface:#282024;--fill:#352A30;--fill2:#2F262B;--ink:#FBEFF2;--ink2:rgba(251,239,242,.66);--ink3:rgba(251,239,242,.38);
-  --sep:rgba(255,220,230,.1);--accent:#F28FA8;--accent-ink:#3A1222;--accent-text:#F7A3B9;--accent-soft:#4A2A35;
-  --pink:#45282F;--pink-2:#F48FA8;--peach:#46302A;--peach-2:#F3A57E;--lilac:#352F4C;--lilac-2:#B9A7F2;--mint:#22403A;--mint-2:#6FD1AE;--butter:#433A22;--butter-2:#F2D27A;
-  --hero-a:#4A2F33;--hero-b:#3F2A44;--hero-ink:#FBEFF2;--hero-2:rgba(251,239,242,.66);--hero-track:rgba(255,255,255,.14);
-  --danger:#FF8B82;--danger-soft:#4A2724;
-  --bar:rgba(28,22,25,.82);--glow:rgba(255,255,255,.04);--ring-bg:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.5);--shadow:0 1px 0 rgba(255,255,255,.03);color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#1C1619;--surface:#282024;--fill:#352A30;--fill2:#2F262B;--ink:#FBEFF2;--ink2:rgba(251,239,242,.66);--ink3:rgba(251,239,242,.38);
-  --sep:rgba(255,220,230,.1);--accent:#F28FA8;--accent-ink:#3A1222;--accent-text:#F7A3B9;--accent-soft:#4A2A35;
-  --pink:#45282F;--pink-2:#F48FA8;--peach:#46302A;--peach-2:#F3A57E;--lilac:#352F4C;--lilac-2:#B9A7F2;--mint:#22403A;--mint-2:#6FD1AE;--butter:#433A22;--butter-2:#F2D27A;
-  --hero-a:#4A2F33;--hero-b:#3F2A44;--hero-ink:#FBEFF2;--hero-2:rgba(251,239,242,.66);--hero-track:rgba(255,255,255,.14);
-  --danger:#FF8B82;--danger-soft:#4A2724;
-  --bar:rgba(28,22,25,.82);--glow:rgba(255,255,255,.04);--ring-bg:rgba(255,255,255,.1);--scrim:rgba(0,0,0,.5);--shadow:0 1px 0 rgba(255,255,255,.03);color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.38;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
