@@ -1,6 +1,6 @@
 # Nest List
 
-A private, shareable checklist for everything to sort before the baby arrives: baby items, the hospital bag, mom essentials and paperwork. It installs on an iPhone home screen and opens full screen like an app.
+A private, shareable checklist for everything to sort before the baby arrives: baby items, the hospital bag, mom essentials and paperwork. It installs on an iPhone home screen and opens full screen like an app. It is designed to help new moms to keep track of all necessities.
 
 - Plain HTML, CSS and JavaScript, with no build step. Hosted on GitHub Pages.
 - Accounts and data live in Supabase. Each person owns one list and can share it, view only, by email.
