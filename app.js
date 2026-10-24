@@ -121,26 +121,33 @@ function countdown(){
   var left=daysUntil(d),g=Math.max(0,Math.min(280,280-left)),wk=Math.floor(g/7),dy=g%7;
   var tri=wk<14?'First trimester':wk<28?'Second trimester':'Third trimester';
   var big=left>=0?left:-left,unit=(big===1?'day':'days')+(left>=0?' to go':' past due');
-  return '<div class="hero"><div class="top"><span class="eyebrow">'+(nm?esc(nm):'Due date')+'</span><span class="date">'+esc(longDate(d))+'</span></div>'+
-   '<div><div class="num">'+big+'<small>'+unit+'</small></div><div class="sub">'+(left>=0?'Week '+wk+(dy?' + '+dy+' days':'')+' · '+tri+(SIZES[wk]?'<span class="size">About the size of '+SIZES[wk]+'</span>':''):'Any day now')+'</div></div>'+
-   '<div><div class="track"><i style="width:'+(g/280*100).toFixed(1)+'%"></i><b style="left:35%"></b><b style="left:70%"></b></div><div class="tri"><span>Week 0</span><span>14</span><span>28</span><span>40</span></div></div></div>';
+  return '<div class="hero calm"><div class="num">'+big+'<small>'+unit+'</small></div>'+
+   '<div class="sub">'+(nm?esc(nm)+' · ':'')+(left>=0?'Week '+wk:'Any day now')+' · due '+esc(shortDate(d))+'</div>'+
+   '<div class="track"><i style="width:'+(g/280*100).toFixed(1)+'%"></i></div></div>';
 }
-function stat(label,a,b,tab,tone){return '<button class="stat '+tone+'" data-act="tab" data-tab="'+tab+'">'+ring(pct(a,b))+'<span class="tx"><span class="k">'+label+'</span><span class="v">'+a+'<span> / '+b+'</span></span></span></button>'}
+function stat(label,a,b,tab,tone){return '<button class="prog '+tone+'" data-act="tab" data-tab="'+tab+'"><span class="k">'+label+'</span><span class="bar"><i style="width:'+(pct(a,b)*100).toFixed(1)+'%"></i></span><span class="v">'+a+'/'+b+'</span></button>'}
 function overview(){
   var baby=allItems('baby'),mom=allItems('mom');
   var bag=[];state.areas.mom.sections.forEach(function(s){if(s.bag)bag=bag.concat(s.items)});
   var ess=[];state.areas.mom.sections.forEach(function(s){if(!s.bag)ess=ess.concat(s.items)});
   var tasks=[];state.lists.forEach(function(l){l.tasks.forEach(function(t){tasks.push({t:t,l:l})})});
   var got=function(a){return a.filter(function(i){return i.got}).length};
-  var s=countdown()+'<div class="stats">'+
+  var s=countdown()+'<div class="group progs">'+
     stat('Baby items',got(baby),baby.length,'baby','t-pink')+stat('Hospital bag',got(bag),bag.length,'mom','t-peach')+
     stat('For mom',got(ess),ess.length,'mom','t-lilac')+stat('To-dos',tasks.filter(function(x){return x.t.done}).length,tasks.length,'todo','t-mint')+'</div>';
   var up=tasks.filter(function(x){return !x.t.done&&x.t.due}).sort(function(a,b){return a.t.due<b.t.due?-1:1}).slice(0,5);
   s+=H2('Coming up')+'<div class="group">'+(up.length?up.map(function(x){return taskRow(x.t,x.l.name)}).join(''):'<div class="empty">No deadlines yet. Give a to-do a date and it appears here.</div>')+'</div>';
   var all=baby.concat(mom),est=0,priced=0,spent=0,used=0;
   all.forEach(function(i){if(!i.got){var m=minPrice(i);if(m!=null){est+=m;priced++}}if(i.got&&i.paid!=null)spent+=i.paid;if(i.pref==='used')used++});
-  s+=H2('Budget')+'<div class="group"><div class="money"><div><b>'+money(spent)+'</b><span>Spent</span></div><div><b>'+(priced?money(est):'—')+'</b><span>Still to spend</span></div><div><b>'+used+'</b><span>Second-hand</span></div></div></div>'+
-   '<p class="note">'+(priced?'Based on the cheapest saved link for '+priced+' item'+(priced>1?'s':'')+' still to get.':'Save links with prices on items to estimate what is left to spend.')+'</p>';
+  var bud=state.settings.budget;
+  if(bud>0){var over=spent+est>bud,leftB=bud-spent;
+    s+=H2('Budget',canWrite?'<button class="textbtn" data-act="settings">Edit</button>':'')+'<div class="group pad budget"><div class="bt"><b>'+money(spent)+'</b><span> of '+money(bud)+' spent</span></div>'+
+     '<div class="bar'+(spent>bud?' over':'')+'"><i style="width:'+Math.min(100,spent/bud*100).toFixed(1)+'%"></i>'+(est?'<em style="left:'+Math.min(100,spent/bud*100).toFixed(1)+'%;width:'+Math.max(0,Math.min(100-spent/bud*100,est/bud*100)).toFixed(1)+'%"></em>':'')+'</div>'+
+     '<div class="bs"><span>'+(leftB>=0?money(leftB)+' left':money(-leftB)+' over budget')+'</span><span>'+(priced?'About '+money(est)+' still to buy':'')+'</span></div></div>'+
+     '<p class="note">'+(priced?(over?'Your saved prices add up to more than the budget.':'Your saved prices fit within the budget.')+' Based on the cheapest link for '+priced+' item'+(priced>1?'s':'')+'.':'Add prices to item links to see what is still to buy.')+'</p>';
+  } else {
+    s+=H2('Budget')+'<div class="group"><div class="money"><div><b>'+money(spent)+'</b><span>Spent</span></div><div><b>'+(priced?money(est):'—')+'</b><span>Still to spend</span></div></div>'+(canWrite?'<button class="add" data-act="settings"><span class="plus">'+ICON.plus+'</span>Set a budget</button>':'')+'</div>';
+  }
   var drops=all.filter(function(i){return !i.got&&hasDrop(i)});
   if(drops.length)s+=H2('Price drops',drops.length)+'<div class="group">'+drops.map(itemRow).join('')+'</div>';
   var must=all.filter(function(i){return i.must!==false&&!i.got});
@@ -292,12 +299,13 @@ function taskForm(f,listId){
   var dd=state.settings.dueDate,q='';
   q='<div class="qchips">'+(dd?[[-56,'8 wks before due'],[-28,'4 wks before'],[-14,'2 wks before'],[0,'Due date'],[14,'2 wks after'],[42,'6 wks after']]:[]).map(function(x){return '<button type="button" class="chip" data-add="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<button type="button" class="chip" data-clear>No date</button></div>';
   var b='<div class="fg"><input class="in" id="t-title" value="'+esc(t.title)+'" placeholder="Task" aria-label="Task" style="padding-left:16px;padding-right:16px"></div>'+
-   '<div class="fg">'+sw('t-done',t.done,'Done')+'<div class="fr"><label for="t-due">Deadline</label><span class="datepick"><span class="dp-txt" id="t-due-txt"></span><input id="t-due" type="date" value="'+esc(t.due)+'"></span></div>'+q+'</div>'+
+   '<div class="fg">'+sw('t-done',t.done,'Done')+'<div class="fr"><label for="t-due">Deadline</label><span class="datepick"><span class="dp-txt" id="t-due-txt"></span><input id="t-due" type="date"></span></div>'+q+'</div>'+
    '<div class="fh">Notes</div><div class="fg"><textarea class="in" id="t-notes" placeholder="Documents needed, phone numbers, links" aria-label="Notes">'+esc(t.notes)+'</textarea></div>'+(isNew?'':delBtn('t-del'));
   openSheet(isNew?'New task':'Edit task',b,{onSave:function(r){var v=$('#t-title',r).value.trim();if(!v){$('#t-title',r).focus();return false}t.title=v;t.due=$('#t-due',r).value;t.done=swVal(r,'t-done');t.notes=$('#t-notes',r).value.trim();if(isNew)l.tasks.push(t)}},function(r){
     // The real date input sits invisibly over the label, so tapping it opens the phone's own date picker.
+    // No value attribute: the iPhone picker's Reset puts the field back to it, which now means no date.
     var due=$('#t-due',r),txt=$('#t-due-txt',r),sync=function(){txt.textContent=due.value?longDate(due.value):'Choose a date';txt.classList.toggle('empty',!due.value)};
-    due.addEventListener('input',sync);due.addEventListener('change',sync);sync();
+    due.value=t.due||'';['input','change','blur'].forEach(function(ev){due.addEventListener(ev,sync)});sync();
     r.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){due.value=addDays(dd,+b.getAttribute('data-add'));sync()}});
     $('[data-clear]',r).onclick=function(){due.value='';sync()};
     if(f)armDelete(r,'t-del',function(){l.tasks=l.tasks.filter(function(x){return x!==t})});
@@ -315,11 +323,12 @@ function settingsForm(){
   if(!canWrite){openSheet('Settings','<div class="banner">'+ICON.eye+'<span>This list was shared with you to view.</span></div>'+acct,{done:true},function(r){$('#s-out',r).onclick=signOut});return}
   var b='<div class="fg"><div class="fr"><label for="s-due">Due date</label><input class="in" id="s-due" type="date" value="'+esc(st.dueDate)+'"></div>'+
    '<div class="fr"><label for="s-name">Nickname</label><input class="in" id="s-name" value="'+esc(st.babyName)+'" placeholder="Optional"></div>'+
+   '<div class="fr"><label for="s-bud">Budget</label><input class="in" id="s-bud" type="number" inputmode="decimal" min="0" step="1" value="'+(st.budget>0?st.budget:'')+'" placeholder="No limit"></div>'+
    '<div class="fr"><label for="s-cur">Currency</label><select class="in" id="s-cur">'+CURRENCIES.map(function(c){return '<option'+(c===st.currency?' selected':'')+'>'+c+'</option>'}).join('')+'</select></div></div>'+
    '<div class="fh">Shared with (view only)</div><div class="fg" id="viewers"><div class="empty">Loading…</div></div>'+
    '<div class="fg"><div class="fr"><input class="in" id="s-share" type="email" inputmode="email" autocapitalize="off" placeholder="Partner’s email" aria-label="Email to share with" style="text-align:left"><button type="button" class="textbtn" id="s-add">Share</button></div></div>'+
    '<p class="note" style="margin:-14px 16px 22px">They create an account in Nest List with this email and see your list. They can’t change anything.</p>'+acct;
-  openSheet('Settings',b,{onSave:function(r){st.dueDate=$('#s-due',r).value;st.babyName=$('#s-name',r).value.trim();st.currency=$('#s-cur',r).value}},function(r){
+  openSheet('Settings',b,{onSave:function(r){st.dueDate=$('#s-due',r).value;st.babyName=$('#s-name',r).value.trim();st.currency=$('#s-cur',r).value;var bv=parseFloat($('#s-bud',r).value);st.budget=bv>0?Math.round(bv*100)/100:null}},function(r){
     $('#s-out',r).onclick=signOut;
     function load(){sb.from('list_viewers').select('email').eq('list_id',listId).order('created_at').then(function(res){var box=$('#viewers',r);if(!box)return;
       var rows=res.data||[];box.innerHTML=rows.length?rows.map(function(v){return '<div class="fr"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+esc(v.email)+'</span><button type="button" class="textbtn" data-rm="'+esc(v.email)+'" style="color:var(--danger);font-weight:600">Remove</button></div>'}).join(''):'<div class="empty">Not shared with anyone yet.</div>';

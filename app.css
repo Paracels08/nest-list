@@ -55,6 +55,25 @@ main.wrap{padding-block:0 calc(var(--tabh) + 44px + env(safe-area-inset-bottom,0
 .hero-empty b{font-family:var(--fd);font-size:21px;font-weight:600}
 .hero-empty p{margin:4px 0 0;color:var(--hero-2);font-size:14.5px}
 /* rings */
+.hero.calm{gap:6px;padding:20px 22px 22px;border-radius:26px}
+.hero.calm .num{font-size:52px}
+.hero.calm .num small{font-size:19px}
+.hero.calm .sub{margin:0 0 8px}
+.progs{margin-top:12px;padding:6px 0}
+.prog{border:0;background:none!important;width:100%;display:grid;grid-template-columns:110px 1fr 52px;align-items:center;gap:12px;padding:11px 18px;text-align:left;color:var(--ink)}
+.prog .k{font-size:15px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.prog .bar,.budget .bar{height:8px;border-radius:99px;background:var(--fill);overflow:hidden;position:relative}
+.prog .bar i{display:block;height:100%;border-radius:99px;background:var(--tone,var(--accent))}
+.prog .v{font-size:14px;font-weight:700;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums}
+.prog.t-pink{--tone:var(--pink-2)}.prog.t-peach{--tone:var(--peach-2)}.prog.t-lilac{--tone:var(--lilac-2)}.prog.t-mint{--tone:var(--mint-2)}
+.budget .bt b{font-family:var(--fd);font-weight:600;font-size:26px}
+.budget .bt span{color:var(--ink2);font-weight:600}
+.budget .bar{height:10px;margin:12px 0 10px}
+.budget .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--accent)}
+.budget .bar em{position:absolute;top:0;bottom:0;background:var(--peach-2);opacity:.35}
+.budget .bar.over i{background:var(--danger)}
+.budget .bs{display:flex;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;color:var(--ink2)}
+.money{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
 .stat{border:0;border-radius:var(--r);padding:16px;text-align:left;display:flex;align-items:center;gap:10px;min-width:0;color:var(--ink)}
 .stat .ring{order:2}
@@ -208,3 +227,4 @@ img{max-width:100%}
 .gate-msg{font-size:14.5px;color:var(--accent-text);background:var(--accent-soft);border-radius:12px;padding:10px 12px;margin:4px 0 14px}
 .btn:disabled{opacity:.6}
 .link{background:none;border:0;color:var(--accent-text);font-weight:700;font-size:15.5px;padding:14px 0 0;align-self:center}
+.h2 span:has(.textbtn){background:none;padding:0}
