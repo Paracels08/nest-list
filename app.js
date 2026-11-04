@@ -346,7 +346,7 @@ function renderGate(){
   var sub={signin:'Sign in to see your checklist.',signup:'Start your own list, or see one shared with you.',reset:'We’ll email you a link to set a new password.',newpass:'Enter a new password for your account.',start:'',loading:''}[gate];
   var h='<main class="wrap gate"><div class="gate-mark" aria-hidden="true"><img src="icons/icon-192.png" alt=""></div><h1 class="gate-title">Nest List</h1>';
   if(!sb)h+='<div class="group pad">This copy of Nest List isn’t connected to its database yet.</div>';
-  else if(gate==='loading')h+='<p class="gate-sub">Loading your list…</p>';
+  else if(gate==='loading')h+='<p class="gate-sub">Loading your list…</p>'+(gateMsg?'<div class="group pad gate-card"><p class="note" style="margin:0 0 16px">'+esc(gateMsg)+'</p><button class="btn" style="width:100%" data-g="reload">Try again</button></div>':'');
   else if(gate==='start'){
     h+='<div class="group pad gate-card"><h2>'+title+'</h2><p class="note" style="margin:6px 0 16px">No list is linked to <b>'+esc(session.user.email)+'</b> yet.</p>'+
      '<button class="btn" style="width:100%" data-g="create">Start my list</button>'+
@@ -379,7 +379,7 @@ function submitGate(){
   else if(gate==='newpass')sb.auth.updateUser({password:p}).then(function(r){if(r.error)done(r.error.message);else{recovering=false;toast('Password updated');loadList()}});
 }
 app.addEventListener('click',function(e){var b=e.target.closest('[data-g]');if(!b)return;var g=b.getAttribute('data-g');
-  if(g==='create')createList();else if(g==='recheck')loadList();else if(g==='out')signOut();else setGate(g)});
+  if(g==='reload')location.reload();else if(g==='create')createList();else if(g==='recheck')loadList();else if(g==='out')signOut();else setGate(g)});
 
 function loadList(){
   if(!session)return setGate('signin');
@@ -453,12 +453,20 @@ if(!sb){render()}else{
     if(ev==='SIGNED_OUT'){session=null;return}
     if(s)session=s;
   });
+  // Never leave the screen empty while the server is checked: show the saved copy straight away,
+  // or a loading note that turns into a retry button if the server doesn't answer.
+  var booted=false;
+  if(c0&&c0.uid&&c0.data){listId=c0.listId;role=c0.role;canWrite=c0.role==='owner';capsChecked=true;state=c0.data;setSave(c0.pending?'pending':'')}
+  else gate='loading';
+  render();
+  var slow=setTimeout(function(){if(!booted&&!state)setGate('loading','Couldn’t reach the server. Check your connection and try again.')},10000);
   sb.auth.getSession().then(function(r){
+    booted=true;clearTimeout(slow);
     session=r.data.session;
-    if(!session){setGate(location.hash.indexOf('type=recovery')>=0?'newpass':'signin');return}
-    if(c0&&c0.uid===session.user.id&&c0.data){openList(c0.listId,c0.role,c0.data,c0.pending)}
+    if(!session){state=null;listId=null;role=null;canWrite=false;setGate(location.hash.indexOf('type=recovery')>=0?'newpass':'signin');return}
+    if(c0&&c0.uid===session.user.id&&c0.data){openList(c0.listId,c0.role,c0.data,c0.pending)}else if(state){state=null;listId=null}
     loadList();
-  });
+  }).catch(function(){booted=true;clearTimeout(slow);if(!state)setGate('loading','Couldn’t reach the server. Check your connection and try again.')});
 }
 if('serviceWorker' in navigator&&location.protocol==='https:'){
   // When a new release takes over, reload once so it shows straight away (unless something is being edited).
