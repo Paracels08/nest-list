@@ -24,10 +24,16 @@ var ICON={
 
 /* ---------- state ---------- */
 var state=null;
-var canWrite=false, capsChecked=false;
+var canWrite=true, capsChecked=true;
 var CFG=window.NEST_CONFIG||{};
-var sb=window.supabase&&CFG.url?window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
-var session=null,listId=null,role=null,channel=null,recovering=false;
+var sb=window.supabase&&CFG.url?window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):null;
+// No accounts: a list is opened by its secret key, from a ?list= link or remembered on this device.
+var listKey=null,listId=null,poller=null;
+function keyFrom(t){var m=String(t||'').match(/[?&#]list=([A-Za-z0-9]{16,64})/)||String(t||'').trim().match(/^([A-Za-z0-9]{16,64})$/);return m?m[1]:null}
+try{listKey=keyFrom(location.search)||localStorage.getItem('nest-key')}catch(e){listKey=keyFrom(location.search)}
+function rememberKey(k){listKey=k;try{if(k)localStorage.setItem('nest-key',k);else localStorage.removeItem('nest-key')}catch(e){}}
+function shareLink(){return location.origin+location.pathname+'?list='+listKey}
+if(listKey)rememberKey(listKey);
 var ui={tab:'home',filter:'need',q:'',collapsed:{}};
 try{var u=JSON.parse(localStorage.getItem('nest-ui')||'null');if(u)ui=Object.assign(ui,u)}catch(e){}
 try{var h=(location.hash||'').slice(1);if(['home','baby','mom','todo'].indexOf(h)>=0)ui.tab=h}catch(e){}
@@ -62,7 +68,7 @@ function ring(f){var r=17.5,c=2*Math.PI*r;return '<svg class="ring" viewBox="0 0
 var saveTimer=null,saving=false,again=false,saveState='';
 function setSave(s){saveState=s;var el=$('#save');if(el){el.textContent=saveLabel();el.className='save'+(s==='error'||s==='offline'?' err':'')}}
 function saveLabel(){return {pending:'Edited',saving:'Saving…',saved:'Saved',error:'Not saved · Retry',offline:'Offline · will sync'}[saveState]||''}
-function cache(){try{localStorage.setItem('nest-cache',JSON.stringify({listId:listId,role:role,uid:session&&session.user.id,data:state,pending:saveState==='pending'||saveState==='offline'||saveState==='error'}))}catch(e){}}
+function cache(){try{localStorage.setItem('nest-cache',JSON.stringify({key:listKey,data:state,pending:saveState==='pending'||saveState==='offline'||saveState==='error'}))}catch(e){}}
 function readCache(){try{return JSON.parse(localStorage.getItem('nest-cache')||'null')}catch(e){return null}}
 function commit(){state.updatedAt=Date.now();setSave('pending');cache();clearTimeout(saveTimer);saveTimer=setTimeout(save,900);render()}
 function flush(){if(saveTimer){clearTimeout(saveTimer);saveTimer=null;save()}}
@@ -71,11 +77,11 @@ window.addEventListener('pagehide',flush);
 window.addEventListener('online',function(){if(saveState==='offline'||saveState==='error')save()});
 function save(){
   saveTimer=null;
-  if(!sb||!canWrite||!listId)return;
+  if(!sb||!listKey||!state)return;
   if(saving){again=true;return}
   if(!navigator.onLine){setSave('offline');cache();return}
   saving=true;setSave('saving');
-  sb.from('lists').update({data:state,updated_at:new Date().toISOString()}).eq('id',listId).then(function(r){
+  sb.rpc('nest_save',{k:listKey,d:state}).then(function(r){
     saving=false;
     if(r.error){setSave(navigator.onLine?'error':'offline');cache()}else{setSave('saved');cache()}
     if(again){again=false;save()}
@@ -83,17 +89,16 @@ function save(){
 }
 // Never swap in server data while a sheet is open: the form holds the old item and saving it would add a copy.
 function refresh(){
-  if(!sb||!listId)return;
-  sb.from('lists').select('data').eq('id',listId).maybeSingle().then(function(r){
-    if(r.data&&r.data.data&&!sheetEl&&!saveTimer&&!saving&&saveState!=='pending'&&saveState!=='offline'&&saveState!=='error'){state=r.data.data;cache();render()}
+  if(!sb||!listKey||!state)return;
+  sb.rpc('nest_get',{k:listKey}).then(function(r){
+    var d=r.data;
+    if(d&&!sheetEl&&!saveTimer&&!saving&&saveState!=='pending'&&saveState!=='offline'&&saveState!=='error'&&(d.updatedAt||0)>(state.updatedAt||0)){state=d;cache();render()}
   });
 }
+// Pick up changes made on another phone every 20 seconds while the app is open.
 function listen(){
-  if(!sb||!listId)return;
-  if(channel)sb.removeChannel(channel);
-  channel=sb.channel('list-'+listId).on('postgres_changes',{event:'UPDATE',schema:'public',table:'lists',filter:'id=eq.'+listId},function(p){
-    if(p.new&&p.new.data&&!sheetEl&&!saveTimer&&!saving&&saveState!=='pending'&&(p.new.data.updatedAt||0)>(state.updatedAt||0)){state=p.new.data;cache();render()}
-  }).subscribe();
+  clearInterval(poller);
+  poller=setInterval(function(){if(document.visibilityState==='visible')refresh()},20000);
 }
 
 /* ---------- render ---------- */
@@ -105,7 +110,7 @@ function render(){
   app.innerHTML='<div class="topbar"><div class="wrap"><button class="save" id="save" data-act="retry">'+esc(saveLabel())+'</button>'+
    '<button class="iconbtn" data-act="settings" aria-label="Settings">'+ICON.gear+'</button></div></div>'+
    '<main class="wrap" id="main"><div class="lt"><h1>'+t[0]+'</h1><p>'+t[1]+'</p></div>'+
-   (capsChecked&&!canWrite?'<div class="banner">'+ICON.eye+'<span>Shared with you. You can view everything, but only the owner can make changes.</span></div>':'')+page()+'</main>'+tabs();
+   page()+'</main>'+tabs();
   window.scrollTo(0,sy);
 }
 function tabs(){
@@ -317,92 +322,63 @@ function nameForm(title,val,placeholder,onSave,onDelete,extra,warn){
     if(onDelete)armDelete(r,'n-del',onDelete,warn);if(!val)setTimeout(function(){$('#n-name',r).focus()},60)});
 }
 function settingsForm(){
-  var st=state.settings,em=session&&session.user.email||'';
-  var acct='<div class="fh">Account</div><div class="fg"><div class="fr"><span class="lbl">Signed in as</span><span class="in" style="color:var(--ink2);overflow:hidden;text-overflow:ellipsis">'+esc(em)+'</span></div></div><button type="button" class="del" id="s-out" style="color:var(--accent-text)">Sign out</button>';
-  if(!canWrite){openSheet('Settings','<div class="banner">'+ICON.eye+'<span>This list was shared with you to view.</span></div>'+acct,{done:true},function(r){$('#s-out',r).onclick=signOut});return}
+  var st=state.settings;
   var b='<div class="fg"><div class="fr"><label for="s-due">Due date</label><input class="in" id="s-due" type="date" value="'+esc(st.dueDate)+'"></div>'+
    '<div class="fr"><label for="s-name">Nickname</label><input class="in" id="s-name" value="'+esc(st.babyName)+'" placeholder="Optional"></div>'+
    '<div class="fr"><label for="s-bud">Budget</label><input class="in" id="s-bud" type="number" inputmode="decimal" min="0" step="1" value="'+(st.budget>0?st.budget:'')+'" placeholder="No limit"></div>'+
    '<div class="fr"><label for="s-cur">Currency</label><select class="in" id="s-cur">'+CURRENCIES.map(function(c){return '<option'+(c===st.currency?' selected':'')+'>'+c+'</option>'}).join('')+'</select></div></div>'+
-   '<div class="fh">Shared with (view only)</div><div class="fg" id="viewers"><div class="empty">Loading…</div></div>'+
-   '<div class="fg"><div class="fr"><input class="in" id="s-share" type="email" inputmode="email" autocapitalize="off" placeholder="Partner’s email" aria-label="Email to share with" style="text-align:left"><button type="button" class="textbtn" id="s-add">Share</button></div></div>'+
-   '<p class="note" style="margin:-14px 16px 22px">They create an account in Nest List with this email and see your list. They can’t change anything.</p>'+acct;
+   '<div class="fh">Share</div><div class="fg"><div class="fr"><input class="in" id="s-link" readonly value="'+esc(shareLink())+'" aria-label="Link to this list" style="text-align:left;color:var(--ink2)"><button type="button" class="textbtn" id="s-copy">'+(navigator.share?'Share':'Copy')+'</button></div></div>'+
+   '<p class="note" style="margin:-14px 16px 22px">Anyone with this link can see and change the list. Open it on each phone you want to use.</p>'+
+   '<button type="button" class="del" id="s-forget" style="color:var(--accent-text)">Remove list from this phone</button>';
   openSheet('Settings',b,{onSave:function(r){st.dueDate=$('#s-due',r).value;st.babyName=$('#s-name',r).value.trim();st.currency=$('#s-cur',r).value;var bv=parseFloat($('#s-bud',r).value);st.budget=bv>0?Math.round(bv*100)/100:null}},function(r){
-    $('#s-out',r).onclick=signOut;
-    function load(){sb.from('list_viewers').select('email').eq('list_id',listId).order('created_at').then(function(res){var box=$('#viewers',r);if(!box)return;
-      var rows=res.data||[];box.innerHTML=rows.length?rows.map(function(v){return '<div class="fr"><span style="flex:1;min-width:0;overflow-wrap:anywhere">'+esc(v.email)+'</span><button type="button" class="textbtn" data-rm="'+esc(v.email)+'" style="color:var(--danger);font-weight:600">Remove</button></div>'}).join(''):'<div class="empty">Not shared with anyone yet.</div>';
-      box.querySelectorAll('[data-rm]').forEach(function(x){x.onclick=function(){sb.from('list_viewers').delete().eq('list_id',listId).eq('email',x.getAttribute('data-rm')).then(load)}})})}
-    load();
-    $('#s-add',r).onclick=function(){var e=$('#s-share',r).value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e)){$('#s-share',r).focus();return}
-      sb.from('list_viewers').insert({list_id:listId,email:e}).then(function(res){if(res.error&&res.error.code!=='23505'){toast('Could not share. Check the email and try again.');return}$('#s-share',r).value='';toast('Shared with '+e);load()})};
+    $('#s-copy',r).onclick=function(){var u=shareLink();
+      if(navigator.share){navigator.share({title:'Nest List',url:u}).catch(function(){});return}
+      (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(function(){toast('Link copied')},function(){$('#s-link',r).select();toast('Select and copy the link')})};
+    $('#s-forget',r).onclick=forget;
   });
 }
-function signOut(){closeSheet();try{localStorage.removeItem('nest-cache')}catch(e){}if(channel)sb.removeChannel(channel);sb.auth.signOut().then(function(){state=null;listId=null;role=null;canWrite=false;gate='signin';render()})}
+// Only forgets the list on this phone. It stays on the server and the link keeps working.
+function forget(){closeSheet();flush();try{localStorage.removeItem('nest-cache')}catch(e){}clearInterval(poller);rememberKey(null);state=null;listId=null;gate='start';render()}
 
-/* ---------- sign in ---------- */
-var gate='signin',gateMsg='',gateBusy=false;
+/* ---------- open a list ---------- */
+var gate='start',gateMsg='',gateBusy=false;
 function renderGate(){
-  var title={signin:'Welcome back',signup:'Create your account',reset:'Reset password',newpass:'Choose a new password',start:'Your list',loading:''}[gate];
-  var sub={signin:'Sign in to see your checklist.',signup:'Start your own list, or see one shared with you.',reset:'We’ll email you a link to set a new password.',newpass:'Enter a new password for your account.',start:'',loading:''}[gate];
   var h='<main class="wrap gate"><div class="gate-mark" aria-hidden="true"><img src="icons/icon-192.png" alt=""></div><h1 class="gate-title">Nest List</h1>';
   if(!sb)h+='<div class="group pad">This copy of Nest List isn’t connected to its database yet.</div>';
   else if(gate==='loading')h+='<p class="gate-sub">Loading your list…</p>'+(gateMsg?'<div class="group pad gate-card"><p class="note" style="margin:0 0 16px">'+esc(gateMsg)+'</p><button class="btn" style="width:100%" data-g="reload">Try again</button></div>':'');
-  else if(gate==='start'){
-    h+='<div class="group pad gate-card"><h2>'+title+'</h2><p class="note" style="margin:6px 0 16px">No list is linked to <b>'+esc(session.user.email)+'</b> yet.</p>'+
-     '<button class="btn" style="width:100%" data-g="create">Start my list</button>'+
-     '<p class="note" style="margin:16px 0 0">Waiting for your partner’s list? Ask them to share it with this email in Settings, then tap Check again.</p>'+
-     '<button class="btn ghost" style="width:100%;margin-top:12px" data-g="recheck">Check again</button></div>'+
-     '<button class="link" data-g="out">Sign out</button>';
-  } else {
-    h+='<form class="group pad gate-card" id="gatef" novalidate><h2>'+title+'</h2><p class="note" style="margin:6px 0 16px">'+sub+'</p>'+
-     (gate!=='newpass'?'<div class="fg flat"><input class="in" id="g-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" placeholder="Email" aria-label="Email"></div>':'')+
-     (gate!=='reset'?'<div class="fg flat"><input class="in" id="g-pass" type="password" autocomplete="'+(gate==='signin'?'current-password':'new-password')+'" placeholder="'+(gate==='signin'?'Password':'Password (8+ characters)')+'" aria-label="Password"></div>':'')+
+  else{
+    h+='<div class="group pad gate-card"><h2>Open your list</h2><p class="note" style="margin:6px 0 16px">Paste the link to your list, or the one your partner sent you.</p>'+
+     '<form id="gatef" novalidate><div class="fg flat"><input class="in" id="g-link" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="List link" aria-label="List link"></div>'+
      (gateMsg?'<p class="gate-msg" role="status">'+esc(gateMsg)+'</p>':'')+
-     '<button class="btn" type="submit" style="width:100%"'+(gateBusy?' disabled':'')+'>'+{signin:'Sign in',signup:'Create account',reset:'Send link',newpass:'Save password'}[gate]+'</button></form>'+
-     (gate==='signin'?'<button class="link" data-g="signup">New here? Create an account</button><button class="link" data-g="reset">Forgot password?</button>':'')+
-     (gate==='signup'||gate==='reset'?'<button class="link" data-g="signin">I already have an account</button>':'');
+     '<button class="btn" type="submit" style="width:100%"'+(gateBusy?' disabled':'')+'>Open list</button></form></div>'+
+     '<button class="link" data-g="create"'+(gateBusy?' disabled':'')+'>New here? Start a new list</button>';
   }
   app.innerHTML=h+'</main>';
-  var f=$('#gatef');if(f)f.onsubmit=function(e){e.preventDefault();submitGate()};
+  var f=$('#gatef');if(f)f.onsubmit=function(e){e.preventDefault();var k=keyFrom($('#g-link').value);if(!k){gateMsg='That doesn’t look like a Nest List link.';render();return}rememberKey(k);loadList()};
 }
 function setGate(g,msg){gate=g;gateMsg=msg||'';gateBusy=false;render()}
-function submitGate(){
-  var em=$('#g-email'),pw=$('#g-pass'),e=em?em.value.trim().toLowerCase():'',p=pw?pw.value:'';
-  if(em&&!/^\S+@\S+\.\S+$/.test(e)){gateMsg='Enter your email address.';render();return}
-  if(pw&&gate!=='signin'&&p.length<8){gateMsg='Use at least 8 characters for the password.';render();return}
-  gateBusy=true;gateMsg='';render();if($('#g-email'))$('#g-email').value=e;
-  var done=function(msg,next){gateBusy=false;if(next)gate=next;gateMsg=msg||'';render();if($('#g-email'))$('#g-email').value=e};
-  var here=location.origin+location.pathname;
-  if(gate==='signin')sb.auth.signInWithPassword({email:e,password:p}).then(function(r){if(r.error)done(/confirm/i.test(r.error.message)?'Confirm your email first: open the link we sent you, then sign in.':'That email and password don’t match.');else{session=r.data.session;loadList()}});
-  else if(gate==='signup')sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:here}}).then(function(r){if(r.error)done(r.error.message);else if(r.data.session){session=r.data.session;loadList()}else done('Almost there. Open the link we emailed to '+e+', then sign in here.','signin')});
-  else if(gate==='reset')sb.auth.resetPasswordForEmail(e,{redirectTo:here}).then(function(r){done(r.error?r.error.message:'Check your email for a link to set a new password.','signin')});
-  else if(gate==='newpass')sb.auth.updateUser({password:p}).then(function(r){if(r.error)done(r.error.message);else{recovering=false;toast('Password updated');loadList()}});
-}
 app.addEventListener('click',function(e){var b=e.target.closest('[data-g]');if(!b)return;var g=b.getAttribute('data-g');
-  if(g==='reload')location.reload();else if(g==='create')createList();else if(g==='recheck')loadList();else if(g==='out')signOut();else setGate(g)});
+  if(g==='reload')location.reload();else if(g==='create')createList();else setGate(g)});
 
 function loadList(){
-  if(!session)return setGate('signin');
-  if(recovering)return setGate('newpass');
-  var uid=session.user.id;
+  if(!listKey)return setGate('start');
   if(!state){gate='loading';render()}
-  sb.from('lists').select('id,owner,data').order('owner',{ascending:true}).then(function(r){
-    if(r.error){var c=readCache();if(c&&c.uid===uid&&c.data){openList(c.listId,c.role,c.data,c.pending);toast('Offline · showing your saved copy')}else setGate('signin','Couldn’t reach the server. Check your connection and try again.');return}
-    var rows=r.data||[],own=rows.filter(function(x){return x.owner===uid})[0],shared=rows.filter(function(x){return x.owner!==uid})[0];
+  sb.rpc('nest_get',{k:listKey}).then(function(r){
     var c=readCache();
-    if(own){var d=own.data;if(c&&c.uid===uid&&c.listId===own.id&&c.pending&&c.data&&(c.data.updatedAt||0)>(d.updatedAt||0)){d=c.data;openList(own.id,'owner',d,true);save();return}openList(own.id,'owner',d)}
-    else if(shared)openList(shared.id,'viewer',shared.data);
-    else setGate('start');
-  });
+    if(r.error){if(c&&c.key===listKey&&c.data){openList(c.data,c.pending);toast('Offline · showing your saved copy')}else setGate('loading','Couldn’t reach the server. Check your connection and try again.');return}
+    if(!r.data){state=null;rememberKey(null);setGate('start','No list found at that link. Check it and try again.');return}
+    var d=r.data;
+    if(c&&c.key===listKey&&c.pending&&c.data&&(c.data.updatedAt||0)>(d.updatedAt||0)){openList(c.data,true);save();return}
+    openList(d);
+  },function(){setGate('loading','Couldn’t reach the server. Check your connection and try again.')});
 }
-function openList(id,r,data,pending){listId=id;role=r;canWrite=r==='owner';capsChecked=true;state=data;setSave(pending?'pending':'');cache();render();listen()}
+function openList(data,pending){state=data;setSave(pending?'pending':'');cache();render();listen()}
 function createList(){
-  gateBusy=true;
+  gateBusy=true;gateMsg='';render();
   fetch('starter.json',{cache:'no-store'}).then(function(x){return x.json()}).then(function(starter){
     starter.updatedAt=Date.now();
-    return sb.from('lists').insert({data:starter}).select('id,data').single();
-  }).then(function(r){if(r.error){setGate('start');toast('Could not create the list. Try again.');return}openList(r.data.id,'owner',r.data.data)})
-  .catch(function(){setGate('start');toast('Could not create the list. Check your connection.')});
+    return sb.rpc('nest_create',{d:starter}).then(function(r){if(r.error||!r.data)throw r.error;rememberKey(r.data);gateBusy=false;openList(starter);toast('List created. Find its link in Settings.')});
+  }).catch(function(){setGate('start','Could not create the list. Check your connection and try again.')});
 }
 
 function shoppingText(){
@@ -447,26 +423,11 @@ app.addEventListener('input',function(e){if(e.target.id==='q'){ui.q=e.target.val
 
 /* ---------- boot ---------- */
 if(!sb){render()}else{
+  // Never leave the screen empty while the server is checked: show the saved copy straight away.
   var c0=readCache();
-  sb.auth.onAuthStateChange(function(ev,s){
-    if(ev==='PASSWORD_RECOVERY'){recovering=true;session=s;state=null;setGate('newpass');return}
-    if(ev==='SIGNED_OUT'){session=null;return}
-    if(s)session=s;
-  });
-  // Never leave the screen empty while the server is checked: show the saved copy straight away,
-  // or a loading note that turns into a retry button if the server doesn't answer.
-  var booted=false;
-  if(c0&&c0.uid&&c0.data){listId=c0.listId;role=c0.role;canWrite=c0.role==='owner';capsChecked=true;state=c0.data;setSave(c0.pending?'pending':'')}
-  else gate='loading';
-  render();
-  var slow=setTimeout(function(){if(!booted&&!state)setGate('loading','Couldn’t reach the server. Check your connection and try again.')},10000);
-  sb.auth.getSession().then(function(r){
-    booted=true;clearTimeout(slow);
-    session=r.data.session;
-    if(!session){state=null;listId=null;role=null;canWrite=false;setGate(location.hash.indexOf('type=recovery')>=0?'newpass':'signin');return}
-    if(c0&&c0.uid===session.user.id&&c0.data){openList(c0.listId,c0.role,c0.data,c0.pending)}else if(state){state=null;listId=null}
-    loadList();
-  }).catch(function(){booted=true;clearTimeout(slow);if(!state)setGate('loading','Couldn’t reach the server. Check your connection and try again.')});
+  if(listKey&&c0&&c0.key===listKey&&c0.data){state=c0.data;setSave(c0.pending?'pending':'');render();loadList()}
+  else if(listKey){gate='loading';render();loadList()}
+  else render();
 }
 if('serviceWorker' in navigator&&location.protocol==='https:'){
   // When a new release takes over, reload once so it shows straight away (unless something is being edited).
