@@ -373,7 +373,7 @@ function submitGate(){
   gateBusy=true;gateMsg='';render();if($('#g-email'))$('#g-email').value=e;
   var done=function(msg,next){gateBusy=false;if(next)gate=next;gateMsg=msg||'';render();if($('#g-email'))$('#g-email').value=e};
   var here=location.origin+location.pathname;
-  if(gate==='signin')sb.auth.signInWithPassword({email:e,password:p}).then(function(r){if(r.error)done(/confirm/i.test(r.error.message)?'Confirm your email first: open the link we sent you, then sign in.':'That email and password don’t match.');else{session=r.data.session;loadList()}});
+  if(gate==='signin')sb.auth.signInWithPassword({email:e,password:p}).then(function(r){if(r.error)done(/confirm/i.test(r.error.message)?'Confirm your email first: open the link we sent you, then sign in.':/invalid/i.test(r.error.message)?'That email and password don’t match.':'Couldn’t reach the server. Check your connection and try again.');else{session=r.data.session;loadList()}});
   else if(gate==='signup')sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:here}}).then(function(r){if(r.error)done(r.error.message);else if(r.data.session){session=r.data.session;loadList()}else done('Almost there. Open the link we emailed to '+e+', then sign in here.','signin')});
   else if(gate==='reset')sb.auth.resetPasswordForEmail(e,{redirectTo:here}).then(function(r){done(r.error?r.error.message:'Check your email for a link to set a new password.','signin')});
   else if(gate==='newpass')sb.auth.updateUser({password:p}).then(function(r){if(r.error)done(r.error.message);else{recovering=false;toast('Password updated');loadList()}});
